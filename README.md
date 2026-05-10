@@ -7,7 +7,6 @@
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Vanilla JS](https://img.shields.io/badge/Stack-HTML5%20%7C%20CSS3%20%7C%20Vanilla%20JS-orange)]()
 
-![Скриншот приложения](screenshots/превью вязального помощника.jpg)
 
 ## ✨ Ключевые возможности
 
