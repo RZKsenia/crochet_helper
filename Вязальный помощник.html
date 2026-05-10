@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Вязальный помощник 🧶</title>
+  <style>
+    :root {
+      --bg: #f7f3ee;
+      --card: #ffffff;
+      --text: #4a3f35;
+      --muted: #8a7e72;
+      --primary: #d4a373;
+      --primary-hover: #b88a5c;
+      --accent: #8cb38f;
+      --danger: #e07a5f;
+      --shadow: 0 6px 18px rgba(74,63,53,0.1);
+      --radius: 14px;
+      --panel-w: 300px;
+      --right-w: 320px;
+      --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+    * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; margin:0; padding:0; }
+    body { background: var(--bg); font-family: var(--font); color: var(--text); min-height: 100vh; }
+    
+    header { background: var(--card); padding: 12px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); display:flex; align-items:center; gap:12px; }
+    h1 { font-size: 1.4rem; color: var(--primary-hover); }
+    header .back { font-size: 0.8rem; color: var(--muted); }
+
+    .layout { display: flex; height: calc(100vh - 54px); }
+
+    .left {
+      width: var(--panel-w); background: var(--card); border-right: 1px solid #e8e0d5;
+      overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px;
+      flex-shrink: 0;
+    }
+    .panel-section { background: #faf7f2; border-radius: 12px; padding: 14px; }
+    .panel-title { font-size: 0.85rem; font-weight: 700; color: var(--primary-hover); margin-bottom: 10px; display:flex; align-items:center; gap:6px; }
+    .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .row:last-child { margin-bottom: 0; }
+    .row label { font-size: 0.8rem; font-weight: 600; flex: 1; }
+    input[type="number"] { width: 60px; padding: 6px; border: 2px solid #e0d4c8; border-radius: 8px; font-size: 0.9rem; text-align: center; }
+    input[type="number"]:focus { border-color: var(--primary); }
+    
+    button, .file-label {
+      background: var(--primary); color: white; border: none; padding: 9px 12px;
+      border-radius: 10px; font-size: 0.85rem; cursor: pointer; transition: 0.2s;
+      font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    button:hover, .file-label:hover { background: var(--primary-hover); }
+    button:active { transform: translateY(0); }
+    button.secondary { background: var(--accent); }
+    button.secondary:hover { background: #7a9e7d; }
+    button.danger { background: var(--danger); }
+    button.danger:hover { background: #c86a50; }
+    button.full { width: 100%; }
+    input[type="file"] { display: none; }
+
+    .mode-switch { display: flex; background: #e8e0d5; border-radius: 10px; overflow: hidden; width: 100%; }
+    .mode-btn { flex: 1; padding: 10px; cursor: pointer; background: transparent; border: none; font-weight: 600; transition: 0.2s; color: #6b5b4e; font-size: 0.9rem; }
+    .mode-btn.active { background: var(--card); color: var(--primary-hover); box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+
+    .stat { font-size: 0.8rem; display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed #e0d4c8; }
+    .stat:last-child { border-bottom: none; }
+    .row-counter-display { font-size: 1.8rem; font-weight: 700; color: var(--primary-hover); text-align: center; margin: 8px 0; }
+    .btn-row-end { background: var(--accent); width: 100%; padding: 12px; font-size: 1rem; margin-bottom: 6px; }
+    .btn-row-end:hover { background: #7a9e7d; }
+
+    .note-input { width: 100%; padding: 8px; border: 2px solid #e0d4c8; border-radius: 8px; font-size: 0.85rem; resize: vertical; min-height: 60px; font-family: inherit; }
+    .note-input:focus { border-color: var(--primary); }
+    .note-tag { font-size: 0.75rem; background: var(--primary); color: white; padding: 2px 8px; border-radius: 6px; cursor: pointer; }
+
+    .center { flex: 1; position: relative; background: #f0ebe5; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+    .workspace { position: absolute; top:0; left:0; width:100%; height:100%; transition: border 0.2s; border: 4px solid transparent; }
+    .workspace.place-mode { border-color: var(--accent); cursor: crosshair; }
+    .workspace.panning { cursor: grabbing; }
+    #canvasContent { position: absolute; transform-origin: 0 0; user-select: none; top: 0; left: 0; }
+    #patternImg { display: block; max-width: none; pointer-events: none; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+    #svgLayer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+    .marker { cursor: pointer; pointer-events: all; transition: filter 0.2s; }
+    .marker:hover { filter: drop-shadow(0 0 4px var(--primary)); }
+    .marker.selected { filter: drop-shadow(0 0 6px var(--primary)) brightness(1.15); }
+
+    .placeholder { text-align: center; color: var(--muted); padding: 40px; position: absolute; width: 100%; }
+    .placeholder svg { width: 50px; height: 50px; margin-bottom: 12px; fill: currentColor; opacity: 0.4; }
+    .grid-line { pointer-events: none; }
+    .mode-indicator {
+      position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+      background: rgba(255,255,255,0.9); padding: 6px 12px; border-radius: 20px;
+      font-size: 0.8rem; font-weight: 600; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      pointer-events: none; z-index: 10; transition: opacity 0.3s;
+    }
+
+    .right {
+      width: var(--right-w); background: var(--card); border-left: 1px solid #e8e0d5;
+      overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px;
+      flex-shrink: 0;
+    }
+    .stitch-btn {
+      background: #faf8f5; border: 2px solid transparent; border-radius: 12px; padding: 10px 12px;
+      cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 12px; text-align: left; width: 100%;
+    }
+    .stitch-btn:hover { background: #f0ebe5; }
+    .stitch-btn.active { border-color: var(--primary); background: #fdf6ed; }
+    .stitch-btn svg { width: 34px; height: 34px; color: #333; flex-shrink: 0; }
+    .stitch-info { flex: 1; }
+    .stitch-name { font-size: 0.85rem; font-weight: 700; color: var(--text); }
+    .stitch-desc { font-size: 0.75rem; color: var(--muted); margin-top: 2px; line-height: 1.3; }
+    .stitch-count { font-size: 0.75rem; background: #e8e0d5; padding: 2px 8px; border-radius: 10px; font-weight: 600; color: var(--muted); }
+
+    .color-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .color-dot { width: 26px; height: 26px; border-radius: 50%; cursor: pointer; border: 2px solid #e0d4c8; transition: 0.15s; background-color: var(--c); }
+    .color-dot.active { border-color: var(--text); transform: scale(1.15); }
+    .color-preview { width: 26px; height: 26px; border-radius: 6px; border: 2px solid #e0d4c8; }
+    input[type="color"] { width: 26px; height: 26px; border: 2px solid #e0d4c8; border-radius: 6px; cursor: pointer; padding: 0; background: none; }
+
+    .tooltip {
+      position: absolute; background: #333; color: white; padding: 10px 14px; border-radius: 8px;
+      font-size: 0.8rem; line-height: 1.4; max-width: 240px; z-index: 50; pointer-events: none;
+      opacity: 0; transition: opacity 0.2s;
+    }
+    .tooltip.show { opacity: 1; }
+
+    .toast {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: #333; color: white; padding: 10px 18px; border-radius: 10px;
+      opacity: 0; transition: 0.3s; pointer-events: none; z-index: 100;
+    }
+    .toast.show { opacity: 1; bottom: 30px; }
+
+    @media (max-width: 1024px) {
+      .layout { flex-direction: column; height: auto; }
+      .left, .right { width: 100%; max-height: 250px; overflow-y: auto; border: none; border-bottom: 1px solid #e8e0d5; }
+      .center { height: 60vh; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🧶 Вязальный помощник</h1>
+    <span class="back">Схемы • Петли • Прогресс</span>
+  </header>
+
+  <div class="layout">
+    <div class="left">
+      <div class="panel-section">
+        <div class="panel-title">🎯 Режим работы</div>
+        <div class="mode-switch">
+          <button class="mode-btn active" data-mode="pan">🖱️ Двигать</button>
+          <button class="mode-btn" data-mode="place">🧵 Ставить</button>
+        </div>
+        <div style="font-size:0.75rem; color:var(--muted); margin-top:6px; text-align:center;">
+          В режиме «Ставить» клик по схеме ставит выбранную петлю
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-title">🔢 Счётчик рядов</div>
+        <div class="row-counter-display" id="rowDisplay">0</div>
+        <button class="btn-row-end full" id="btnRowEnd">✅ Ряд закончен (+1)</button>
+        <div class="row"><button class="secondary full" onclick="changeRows(-1)">⬅ Назад (-1)</button></div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-title">📏 Плотность вязания</div>
+        <div class="row"><label>Петель в 10 см</label><input type="number" id="gaugeSt" value="20" min="1"></div>
+        <div class="row"><label>Рядов в 10 см</label><input type="number" id="gaugeRw" value="10" min="1"></div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-title">📊 Статистика проекта</div>
+        <div id="statsContainer"><div class="stat"><span>Всего петель</span><strong>0</strong></div></div>
+        <div class="row" style="margin-top:10px;"><label>Ширина (по петлям)</label><strong id="infoWidth">0.0 см</strong></div>
+        <div class="row"><label>Высота (по рядам)</label><strong id="infoHeight">0.0 см</strong></div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-title">📝 Заметка</div>
+        <textarea class="note-input" id="noteText" placeholder="Заметка к текущему ряду..."></textarea>
+        <div class="row" style="margin-top:8px;"><button class="full" onclick="saveNote()">💾 Сохранить заметку</button></div>
+        <div id="notesList" style="margin-top:8px;"></div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-title">⚙️ Действия</div>
+        <div class="row"><label class="file-label" style="width:100%; justify-content:center; margin:0;">📷 Загрузить схему<input type="file" id="imgInput" accept="image/*"></label></div>
+        <div class="row">
+          <button class="full" onclick="toggleGrid()">🔲 Сетка</button>
+          <button class="full secondary" onclick="fitImage()">🔍 Вписать</button>
+        </div>
+        <div class="row">
+          <button class="full" onclick="saveProject()">💾 Сохранить</button>
+          <label class="file-label full" style="margin:0;">📂 Открыть<input type="file" id="loadInput" accept=".json"></label>
+        </div>
+        <button class="full danger" onclick="clearAll()">🗑 Очистить всё</button>
+      </div>
+    </div>
+
+    <div class="center">
+      <div class="mode-indicator" id="modeIndicator">Режим: Перемещение</div>
+      <div class="workspace" id="workspace">
+        <div class="placeholder" id="placeholder">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+          <div style="font-size:1rem; font-weight:500;">Загрузите схему слева</div>
+          <div style="font-size:0.8rem; margin-top:6px;">Колёсико: масштаб • Зажатие ЛКМ: двигать</div>
+        </div>
+        <div id="canvasContent" style="display:none;">
+          <img id="patternImg" src="" draggable="false">
+          <svg id="svgLayer" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+        </div>
+      </div>
+      <div class="tooltip" id="tooltip"></div>
+    </div>
+
+    <div class="right">
+      <div class="panel-section">
+        <div class="panel-title">
+          🎨 Цвет петель
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;margin-left:6px;vertical-align:middle;"><path d="m12 2-9.3 9.3a2.1 2.1 0 0 0 0 3l1 1 5.5-1.2L22.2 4.2a2.1 2.1 0 0 0-3-1.5Z"/><path d="m15 9-3.8 3.8"/></svg>
+        </div>
+        <div class="color-row" id="colorRow"></div>
+        <div class="row" style="margin-top:8px;">
+          <input type="color" id="customColor" value="#1a1a1a">
+          <div class="color-preview" id="colorPreview"></div>
+        </div>
+      </div>
+      <div class="panel-section" style="flex:1; overflow-y:auto; padding:0;">
+        <div class="panel-title" style="padding:0 14px 10px;">🧵 Палитра петель</div>
+        <div id="stitchList"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const STITCHES = {
+      chain: { name: 'ВП', full: 'Воздушная петля', desc: 'Ввести крючок в петлю, захватить нить, протянуть через петлю на крючке.', path: '<ellipse cx="0" cy="0" rx="5" ry="3.5" fill="none" stroke="currentColor" stroke-width="2"/>', closed: false },
+      slip: { name: 'Сс', full: 'Соединительный столбик', desc: 'Ввести крючок в петлю, захватить нить, протянуть сразу через петлю на схеме и петлю на крючке.', path: '<circle cx="0" cy="0" r="2.5" fill="currentColor"/>', closed: true },
+      sc: { name: 'СБН', full: 'Столбик без накида', desc: 'Ввести крючок в петлю, захватить нить, протянуть (2 петли на крючке). Снова захватить нить, протянуть через обе.', path: '<path d="M-4,0 L4,0 M0,-4 L0,4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>', closed: false },
+      hdc: { name: 'ПССН', full: 'Полустолбик с накидом', desc: 'Накид. Ввести крючок в петлю, захватить нить, протянуть (3 петли). Захватить нить, протянуть через все 3.', path: '<path d="M0,-6 L0,6 M-3,-2 L3,-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>', closed: false },
+      dc: { name: 'С1Н', full: 'Столбик с 1 накидом', desc: 'Накид. Ввести крючок в петлю, захватить нить, протянуть (3 петли). Захватить, протянуть через 2. Захватить, протянуть через оставшиеся 2.', path: '<path d="M0,-6 L0,6 M-4,0 L4,0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>', closed: false },
+      tr: { name: 'С2Н', full: 'Столбик с 2 накидами', desc: 'Два накида. Ввести крючок, захватить нить, протянуть (4 петли). Трижды захватить нить и протягивать по 2 петли.', path: '<path d="M0,-7 L0,7 M-4,-2 L4,-2 M-4,2 L4,2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>', closed: false },
+      dtr: { name: 'С3Н', full: 'Столбик с 3 накидами', desc: 'Три накида. Ввести крючок, захватить нить, протянуть (5 петель). Четырежды протягивать по 2 петли.', path: '<path d="M0,-8 L0,8 M-4,-3 L4,-3 M-4,0 L4,0 M-4,3 L4,3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>', closed: false },
+      inc: { name: 'Приб.', full: 'Прибавка (2 СБН в 1 петлю)', desc: 'В одну петлю основания связать два столбика без накида.', path: '<path d="M-4,0 L4,0 M0,-4 L0,4 M-3,5 Q0,8 3,5" stroke="currentColor" stroke-width="2" fill="none"/>', closed: false },
+      dec: { name: 'Уб.', full: 'Убавка (2 СБН вместе)', desc: 'Не довязав первый СБН, ввести крючок в следующую петлю и протянуть нить (3 петли). Протянуть через все 3.', path: '<path d="M-4,0 L4,0 M0,-4 L0,4 M-3,-5 Q0,-8 3,-5" stroke="currentColor" stroke-width="2" fill="none"/>', closed: false },
+      cluster: { name: 'Кластер', full: 'Кластер / Пышный', desc: 'Начать несколько недоделанных столбиков с одним накидом из одной петли. В конце протянуть нить через все петли.', path: '<circle cx="0" cy="0" r="6" fill="currentColor" opacity="0.3"/><path d="M0,-5 L0,5 M-4,-1.5 L4,-1.5 M-4,1.5 L4,1.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>', closed: true },
+      puff: { name: 'Пышный', full: 'Пышный столбик', desc: 'Накид, ввести крючок, захватить нить, протянуть. Повторить 5-7 раз. Протянуть через все петли, закрепить.', path: '<circle cx="0" cy="0" r="6" fill="currentColor" opacity="0.3"/><path d="M-3,-3 L0,5 M3,-3 L0,5 M0,-6 L0,5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>', closed: true },
+      popcorn: { name: 'Попкорн', full: 'Столбик «попкорн»', desc: 'Связать 4-6 С1Н из одной петли. Снять петлю, ввести крючок в первую петлю основания, протянуть.', path: '<circle cx="0" cy="0" r="6" fill="currentColor" opacity="0.3"/><circle cx="0" cy="0" r="4.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="0" cy="0" r="1.5" fill="currentColor"/>', closed: true }
+    };
+
+    const COLORS = ['#1a1a1a', '#e63946', '#457b9d', '#2a9d8f', '#e9c46a', '#f4a261', '#6a4c93', '#ffffff'];
+    const DEFAULT_STITCH_SIZE = 28;
+
+    const state = {
+      scale: 1, panX: 0, panY: 0, mode: 'pan',
+      markers: [], nextId: 1, selectedId: null, activeType: 'dc', activeColor: COLORS[0],
+      stitchSize: DEFAULT_STITCH_SIZE, gaugeSt: 20, gaugeRw: 10, rows: 0,
+      isDragging: false, dragStartX: 0, dragStartY: 0, panStartX: 0, panStartY: 0,
+      showGrid: false, notes: []
+    };
+
+    const $ = id => document.getElementById(id);
+    const ws = $('workspace'), content = $('canvasContent'), img = $('patternImg');
+    const svgLayer = $('svgLayer'), placeholder = $('placeholder');
+
+    const toast = msg => { const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 2000); };
+    
+    function updateInfo() {
+      const counts = {};
+      state.markers.forEach(m => counts[m.type] = (counts[m.type]||0)+1);
+      let html = `<div class="stat"><span>Всего петель</span><strong>${state.markers.length}</strong></div>`;
+      Object.entries(STITCHES).forEach(([k,v]) => {
+        if(counts[k]) html += `<div class="stat"><span>${v.full}</span><strong>${counts[k]}</strong></div>`;
+      });
+      $('statsContainer').innerHTML = html;
+      if(state.markers.length > 0) {
+        const xs = state.markers.map(m => m.x);
+        const wPx = Math.max(...xs) - Math.min(...xs) + state.stitchSize;
+        $('infoWidth').textContent = ((wPx / state.gaugeSt) * 10).toFixed(1) + ' см';
+      } else $('infoWidth').textContent = '0.0 см';
+      $('infoHeight').textContent = ((state.rows / state.gaugeRw) * 10).toFixed(1) + ' см';
+      $('rowDisplay').textContent = state.rows;
+      document.querySelectorAll('.stitch-btn').forEach(btn => {
+        const type = btn.dataset.type;
+        const badge = btn.querySelector('.stitch-count');
+        if(badge) badge.textContent = counts[type] || 0;
+      });
+    }
+
+    const updateTransform = () => content.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.scale})`;
+
+    function buildPalette() {
+      const container = $('stitchList'); container.innerHTML = '';
+      Object.entries(STITCHES).forEach(([key, val]) => {
+        const btn = document.createElement('button');
+        btn.className = 'stitch-btn' + (key === state.activeType ? ' active' : '');
+        btn.dataset.type = key;
+        btn.innerHTML = `<svg viewBox="-10 -10 20 20">${val.path}</svg><div class="stitch-info"><div class="stitch-name">${val.name} <span style="font-weight:400; color:var(--muted); font-size:0.75rem;">${val.full}</span></div><div class="stitch-desc">${val.desc}</div></div><div class="stitch-count">0</div>`;
+        btn.onclick = () => {
+          document.querySelectorAll('.stitch-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active'); state.activeType = key;
+        };
+        btn.onmouseenter = (e) => showTooltip(e, `<strong>${val.full}</strong><br>${val.desc}`);
+        btn.onmouseleave = hideTooltip;
+        container.appendChild(btn);
+      });
+    }
+
+    function buildColors() {
+      const row = $('colorRow');
+      COLORS.forEach(c => {
+        const dot = document.createElement('div');
+        dot.className = 'color-dot' + (c === state.activeColor ? ' active' : '');
+        dot.style.setProperty('--c', c); dot.onclick = () => applyColor(c);
+        row.appendChild(dot);
+      });
+      $('customColor').oninput = e => applyColor(e.target.value);
+    }
+
+    function applyColor(color) {
+      state.activeColor = color;
+      document.querySelectorAll('.color-dot').forEach(d => d.classList.toggle('active', d.style.getPropertyValue('--c').toLowerCase() === color.toLowerCase()));
+      $('customColor').value = color; $('colorPreview').style.backgroundColor = color;
+      if (state.selectedId !== null) {
+        const m = state.markers.find(x => x.id === state.selectedId);
+        if (m) { m.color = color; renderMarkers(); }
+      }
+    }
+
+    function showTooltip(e, html) { const t = $('tooltip'); t.innerHTML = html; const r = ws.getBoundingClientRect(); t.style.left = '10px'; t.style.top = '10px'; t.classList.add('show'); }
+    function hideTooltip() { $('tooltip').classList.remove('show'); }
+
+    const screenToImg = (cx, cy) => {
+      const r = ws.getBoundingClientRect();
+      return { x: (cx - r.left - state.panX) / state.scale, y: (cy - r.top - state.panY) / state.scale };
+    };
+
+    function renderMarkers() {
+      svgLayer.innerHTML = '';
+      if(img.naturalWidth) {
+        svgLayer.setAttribute('viewBox', `0 0 ${img.naturalWidth} ${img.naturalHeight}`);
+        svgLayer.style.width = img.naturalWidth + 'px'; svgLayer.style.height = img.naturalHeight + 'px';
+      }
+      if(state.showGrid && img.naturalWidth) {
+        const gs = state.stitchSize;
+        for(let x=0; x<img.naturalWidth; x+=gs) { const l=document.createElementNS('http://www.w3.org/2000/svg','line'); l.setAttribute('x1',x); l.setAttribute('y1',0); l.setAttribute('x2',x); l.setAttribute('y2',img.naturalHeight); l.setAttribute('class','grid-line'); l.setAttribute('stroke','#ddd'); l.setAttribute('stroke-width','1'); svgLayer.appendChild(l); }
+        for(let y=0; y<img.naturalHeight; y+=gs) { const l=document.createElementNS('http://www.w3.org/2000/svg','line'); l.setAttribute('x1',0); l.setAttribute('y1',y); l.setAttribute('x2',img.naturalWidth); l.setAttribute('y2',y); l.setAttribute('class','grid-line'); l.setAttribute('stroke','#ddd'); l.setAttribute('stroke-width','1'); svgLayer.appendChild(l); }
+      }
+      state.markers.forEach(m => {
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('transform', `translate(${m.x}, ${m.y}) scale(${m.size/20})`);
+        g.setAttribute('class', 'marker' + (m.id === state.selectedId ? ' selected' : ''));
+        g.setAttribute('data-id', m.id); g.innerHTML = STITCHES[m.type].path; g.style.color = m.color;
+        g.onclick = (e) => { e.stopPropagation(); selectMarker(m.id); };
+        svgLayer.appendChild(g);
+      });
+    }
+
+    function selectMarker(id) { state.selectedId = (state.selectedId === id) ? null : id; if(state.selectedId !== null) applyColor(state.markers.find(x=>x.id===state.selectedId).color); renderMarkers(); }
+    function placeMarker(imgX, imgY) { state.markers.push({ id: state.nextId++, x: imgX, y: imgY, type: state.activeType, color: state.activeColor, size: state.stitchSize }); state.selectedId = null; renderMarkers(); updateInfo(); }
+
+    let ptrId = null;
+    ws.addEventListener('pointerdown', e => {
+      if (!img.src || img.style.display === 'none') return;
+      ws.setPointerCapture(e.pointerId); ptrId = e.pointerId;
+      state.dragStartX = e.clientX; state.dragStartY = e.clientY;
+      state.panStartX = state.panX; state.panStartY = state.panY; state.isDragging = false;
+      if (e.target.classList.contains('marker') || e.target.closest('.marker')) return;
+      if (state.mode === 'pan') ws.classList.add('panning');
+    });
+    ws.addEventListener('pointermove', e => {
+      if (e.pointerId !== ptrId) return;
+      const dx = e.clientX - state.dragStartX, dy = e.clientY - state.dragStartY;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) state.isDragging = true;
+      if (state.isDragging) { ws.classList.add('panning'); state.panX = state.panStartX + dx; state.panY = state.panStartY + dy; updateTransform(); }
+    });
+    ws.addEventListener('pointerup', e => {
+      if (e.pointerId !== ptrId) return;
+      ws.releasePointerCapture(e.pointerId); ws.classList.remove('panning');
+      if (!state.isDragging && state.mode === 'place') {
+        const pos = screenToImg(e.clientX, e.clientY);
+        if (pos.x >= 0 && pos.y >= 0 && pos.x <= img.naturalWidth && pos.y <= img.naturalHeight) placeMarker(pos.x, pos.y);
+      } else if (!state.isDragging && state.mode === 'pan' && state.selectedId !== null) {
+        selectMarker(state.selectedId);
+      }
+      ptrId = null;
+    });
+    ws.addEventListener('wheel', e => {
+      e.preventDefault(); const delta = e.deltaY > 0 ? 0.88 : 1.12;
+      const r = ws.getBoundingClientRect(); const mx = e.clientX - r.left, my = e.clientY - r.top;
+      const old = state.scale; state.scale = Math.min(Math.max(state.scale * delta, 0.1), 6);
+      state.panX = mx - (mx - state.panX) * (state.scale / old); state.panY = my - (my - state.panY) * (state.scale / old);
+      updateTransform();
+    }, { passive: false });
+
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active'); state.mode = btn.dataset.mode;
+        ws.classList.toggle('place-mode', state.mode === 'place');
+        $('modeIndicator').textContent = state.mode === 'pan' ? 'Режим: Перемещение' : 'Режим: Расстановка петель';
+        toast(state.mode === 'pan' ? 'Режим перемещения' : 'Режим расстановки петель');
+      });
+    });
+
+    $('gaugeSt').addEventListener('input', e => { state.gaugeSt = parseInt(e.target.value)||1; updateInfo(); });
+    $('gaugeRw').addEventListener('input', e => { state.gaugeRw = parseInt(e.target.value)||1; updateInfo(); });
+    window.changeRows = d => { state.rows += d; if(state.rows<0) state.rows=0; updateInfo(); };
+    $('btnRowEnd').addEventListener('click', () => { state.rows++; updateInfo(); toast(`Ряд ${state.rows} начат 🌸`); });
+    window.toggleGrid = () => { state.showGrid = !state.showGrid; renderMarkers(); toast(state.showGrid?'Сетка включена':'Сетка выключена'); };
+    window.fitImage = () => {
+      if(!img.naturalWidth) return; const wr = ws.getBoundingClientRect();
+      state.scale = Math.min(wr.width/img.naturalWidth, wr.height/img.naturalHeight, 1.5) * 0.9;
+      state.panX = (wr.width - img.naturalWidth*state.scale)/2; state.panY = (wr.height - img.naturalHeight*state.scale)/2;
+      updateTransform();
+    };
+    window.saveNote = () => {
+      const txt = $('noteText').value.trim(); if(!txt) return;
+      state.notes.push({id: Date.now(), row: state.rows, text: txt});
+      $('noteText').value = ''; renderNotes(); toast('Заметка сохранена');
+    };
+    function renderNotes() { $('notesList').innerHTML = state.notes.map(n => `<div style="font-size:0.8rem; background:#f4efea; padding:6px 8px; border-radius:6px; margin-bottom:4px;"><span class="note-tag">Ряд ${n.row}</span> ${n.text}</div>`).join(''); }
+
+    $('imgInput').addEventListener('change', e => {
+      const f = e.target.files[0]; if(!f) return; img.src = URL.createObjectURL(f);
+      img.onload = () => {
+        ws.classList.add('has-image'); placeholder.style.display = 'none'; content.style.display = 'block';
+        window.fitImage(); renderMarkers(); updateInfo(); toast('Схема загружена');
+      };
+    });
+
+    window.clearAll = () => {
+      if(confirm('Удалить все петли, заметки и сбросить счётчик рядов?')) {
+        state.markers = []; state.selectedId = null; state.notes = []; state.rows = 0;
+        renderMarkers(); updateInfo(); renderNotes(); toast('Всё очищено');
+      }
+    };
+    window.saveProject = () => {
+      const data = { markers: state.markers, rows: state.rows, gauge: {st: state.gaugeSt, rw: state.gaugeRw}, notes: state.notes };
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data,null,2)], {type:'application/json'}));
+      a.download = 'crochet_project.json'; a.click(); toast('Проект сохранён 💾');
+    };
+    $('loadInput').addEventListener('change', e => {
+      const f = e.target.files[0]; if(!f) return; const r = new FileReader();
+      r.onload = ev => {
+        try {
+          const d = JSON.parse(ev.target.result);
+          state.markers = d.markers||[]; state.rows = d.rows||0; state.notes = d.notes||[];
+          state.gaugeSt = d.gauge?.st||20; state.gaugeRw = d.gauge?.rw||10;
+          $('gaugeSt').value = state.gaugeSt; $('gaugeRw').value = state.gaugeRw;
+          renderMarkers(); updateInfo(); renderNotes(); toast('Проект загружен 📂');
+        } catch { toast('Ошибка файла'); }
+      }; r.readAsText(f);
+    });
+
+    buildPalette(); buildColors(); applyColor(COLORS[0]); updateInfo();
+    document.querySelector('.stitch-btn[data-type="dc"]')?.classList.add('active');
+    setInterval(() => { if(state.markers.length > 0) localStorage.setItem('crochet_autosave', JSON.stringify({ markers: state.markers, rows: state.rows })); }, 30000);
+  </script>
+</body>
+</html>
